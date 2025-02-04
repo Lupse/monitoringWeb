@@ -2,16 +2,24 @@
 // Fungsi untuk mengecek status ping
 function cek($ipAddress)
 {
-    // Menjalankan perintah ping
-    $pingResult = exec('ping -n 1 ' . escapeshellarg($ipAddress), $output, $status);
+    // Menjalankan perintah ping dengan timeout 5 detik dan 2 percobaan
+    $pingResult = exec('ping -w 5000 ' . escapeshellarg($ipAddress), $output, $status);
 
-    // Memeriksa status ping, 0 berarti sukses
-    return $status === 0;
+    // Memeriksa output ping untuk memastikan perangkat benar-benar online
+    $isOnline = false;
+    foreach ($output as $line) {
+        if (strpos($line, 'Reply from') !== false) {
+            $isOnline = true;
+            break;
+        }
+    }
+
+    return $isOnline;
 }
 
 // Mengecek apakah ada request ping
 if (isset($_GET['request_ping'])) {
-    $ipAddress = $_GET['ip_address'] ?? '192.168.217.104';
+    $ipAddress = $_GET['ip_address'];
     $pingSuccess = cek($ipAddress);
 
     // Mengembalikan hasil dalam format JSON
@@ -21,6 +29,7 @@ if (isset($_GET['request_ping'])) {
 ?>
 
 <div>
+
     <style>
         .main-table {
             width: 100%;
@@ -251,7 +260,6 @@ if (isset($_GET['request_ping'])) {
             </tr>
         </thead>
 
-
         <tbody>
             @foreach ($device as $devices)
                 <tr class="items-row" data-id="{{ $devices->ID_device }}">
@@ -293,7 +301,7 @@ if (isset($_GET['request_ping'])) {
         </tbody>
     </table>
 
-    {{-- Detail Modal  --}}
+    {{-- Detail Modal --}}
     <div class="modal" id="log-modal" style="display: none;">
         <div class="log-modal-content">
             {{-- Close Button --}}
@@ -393,7 +401,7 @@ if (isset($_GET['request_ping'])) {
                     <p style="font-size: 22px; font-weight:bold; margin-bottom:0px">Device's Record</p>
                     <p style="margin-top:0px">See summary result from this device</p>
                 </div>
-                <div style="display: flex; justify-items:stretch" class="time-button">
+                {{-- <div style="display: flex; justify-items:stretch" class="time-button">
                     <button style="border-radius: 5px 0px 0px 5px ">
                         7 days
                     </button>
@@ -403,7 +411,7 @@ if (isset($_GET['request_ping'])) {
                     <button style="border-radius: 0px 5px 5px 0px ">
                         Year
                     </button>
-                </div>
+                </div> --}}
             </div>
 
             {{-- Log Device Status & Stats Summary --}}
@@ -634,7 +642,10 @@ if (isset($_GET['request_ping'])) {
         // Menambahkan cache untuk nama perangkat
         const deviceNameCache = {};
 
-        // Fungsi untuk melakukan ping perangkat
+        // Menyimpan jumlah percobaan ping gagal
+        const pingFailureCount = {};
+
+        // Fungsi untuk melakukan ping perangkat dengan debouncing
         function pingDevice(ipAddress, deviceId, deviceName) {
             fetch(`/ping?request_ping=true&ip_address=${ipAddress}`)
                 .then(response => response.json())
@@ -647,23 +658,30 @@ if (isset($_GET['request_ping'])) {
                         deviceNameCache[deviceId] = deviceName;
                     }
 
-                    // Cek apakah status perangkat berubah
-                    if (pingResult && deviceStatusCache[deviceId] !== 1) {
-                        // Status berubah dari Offline ke Online
-                        updateDeviceStatus(deviceId, 1); // Update status ke online
-                        writeLog(deviceId, 1); // Catat log online
-                        deviceStatusCache[deviceId] = 1; // Simpan status terbaru
-                    } else if (!pingResult && deviceStatusCache[deviceId] !== 0) {
-                        // Status berubah dari Online ke Offline
+                    // Jika ping gagal, tambahkan ke counter
+                    if (!pingResult) {
+                        pingFailureCount[deviceId] = (pingFailureCount[deviceId] || 0) + 1;
+                    } else {
+                        pingFailureCount[deviceId] = 0; // Reset counter jika ping berhasil
+                    }
+
+                    // Jika ping gagal 3 kali berturut-turut, anggap perangkat offline
+                    if (pingFailureCount[deviceId] >= 3 && deviceStatusCache[deviceId] !== 0) {
                         updateDeviceStatus(deviceId, 0); // Update status ke offline
                         writeLog(deviceId, 0); // Catat log offline
                         deviceStatusCache[deviceId] = 0; // Simpan status terbaru
 
                         // Trigger Offline Modal dan tampilkan nama perangkat serta IP
-                        document.getElementById("offlineDeviceName").textContent = deviceNameCache[
-                            deviceId]; // Nama perangkat
-                        document.getElementById("offlineIpAddress").textContent = ipAddress; // IP perangkat
-                        document.getElementById("offlineModal").style.display = "block"; // Tampilkan modal
+                        document.getElementById("offlineDeviceName").textContent = deviceNameCache[deviceId];
+                        document.getElementById("offlineIpAddress").textContent = ipAddress;
+                        openofflinemodal(); // Tampilkan modal
+                    }
+
+                    // Jika ping berhasil dan status sebelumnya offline, update ke online
+                    if (pingResult && deviceStatusCache[deviceId] !== 1) {
+                        updateDeviceStatus(deviceId, 1); // Update status ke online
+                        writeLog(deviceId, 1); // Catat log online
+                        deviceStatusCache[deviceId] = 1; // Simpan status terbaru
                     }
                 })
                 .catch(error => console.error('Ping Error:', error));
@@ -671,7 +689,10 @@ if (isset($_GET['request_ping'])) {
 
         function openofflinemodal() {
             document.getElementById("offlineModal").style.display = "block";
+            setTimeout(closeOfflineModal, 3500);
         }
+
+
 
         // Fungsi untuk mengatur ping berdasarkan status toggle
         function handleToggleChange(deviceId, ipAddress, deviceName) {
@@ -685,7 +706,7 @@ if (isset($_GET['request_ping'])) {
                     // Mulai ping setiap 3 detik jika interval belum ada
                     pingIntervals[deviceId] = setInterval(function() {
                         pingDevice(ipAddress, deviceId, deviceName); // Pass nama perangkat ke pingDevice
-                    }, 3000);
+                    }, 5000);
                 }
 
                 // Update status perangkat secara langsung
@@ -834,6 +855,9 @@ if (isset($_GET['request_ping'])) {
         // Function to close modal
         function closeModal() {
             modal.style.display = 'none';
+        }
+
+        function closeOfflineModal() {
             offlinemodal.style.display = 'none';
         }
 
@@ -987,6 +1011,6 @@ if (isset($_GET['request_ping'])) {
             XLSX.writeFile(wb, "tabel.xlsx");
         }
     </script>
-    </script>
+
 
 </div>

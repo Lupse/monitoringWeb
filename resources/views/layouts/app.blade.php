@@ -16,6 +16,8 @@
         rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 
+
+
     {{-- xls & pdf export --}}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -56,7 +58,7 @@
         <hr style="margin: 0px">
         <div style="display: flex; justify-content: space-between;">
             <p style="opacity: 0.5">
-                Sistem Monitoring Jaringan PT Jamu dan Farmaasi Sido Muncul
+                Sistem Monitoring Jaringan PT Jamu dan Farmasi Sido Muncul
             </p>
             <p style="opacity: 0.25">
                 Copyright © 2025 Sidomuncul - All Right Reserved
