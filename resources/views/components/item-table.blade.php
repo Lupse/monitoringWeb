@@ -578,6 +578,7 @@ if (isset($_GET['request_ping'])) {
                 statusElement.textContent = 'Online';
                 statusElement.classList.remove('status-offline');
                 statusElement.classList.add('status-online');
+
             } else {
                 statusElement.textContent = 'Offline';
                 statusElement.classList.remove('status-online');
@@ -859,6 +860,7 @@ if (isset($_GET['request_ping'])) {
 
         function closeOfflineModal() {
             offlinemodal.style.display = 'none';
+            location.reload();
         }
 
         // Tutup modal jika klik di luar area modal

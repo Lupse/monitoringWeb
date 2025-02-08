@@ -126,6 +126,14 @@
         .active .group-button {
             background-color: #B66B13;/
         }
+
+        .offline-alert {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background-color: red !important;
+            color: white !important;
+        }
     </style>
 
     <nav>
@@ -152,11 +160,17 @@
                         <p>No Folders available.</p>
                     @else
                         @foreach ($folders as $folder)
+                            @php
+                                // Cek apakah ada device offline dalam folder ini
+                                $hasOfflineDevice = $folder->devices->contains('status', 0);
+                            @endphp
                             <a href="{{ url('/folders/' . $folder->ID_folder) }}"
-                                class="{{ request()->is('folders/' . $folder->ID_folder) ? 'active' : '' }}">
-                                <div class="group-button group-button-items">
-                                    <img src="{{ asset('img/icons/Folder_alt.png') }}" alt="Folder Icon">
-                                    <p>{{ $folder->nama }}</p>
+                                class="group-button group-button-items">
+                                <img src="{{ asset('img/icons/Folder_alt.png') }}" alt="Folder Icon">
+                                <p style="flex: 1">{{ $folder->nama }}</p>
+                                <div
+                                    class="{{ request()->is('folders/' . $folder->ID_folder) ? 'active' : '' }} 
+                        {{ $hasOfflineDevice ? 'offline-alert' : '' }}">
                                 </div>
                             </a>
                         @endforeach
